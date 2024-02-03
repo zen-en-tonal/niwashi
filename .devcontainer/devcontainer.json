@@ -1,5 +1,17 @@
 {
-    "dockerComposeFile": ["docker-compose.yml"],
+    "dockerComposeFile": [
+        "docker-compose.yml"
+    ],
     "service": "rust_devcontainer",
-    "workspaceFolder": "/workspace"
+    "workspaceFolder": "/workspace",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "rust-lang.rust-analyzer",
+                "tamasfe.even-better-toml",
+                "vadimcn.vscode-lldb",
+                "ms-azuretools.vscode-docker"
+            ]
+        }
+    }
 }
