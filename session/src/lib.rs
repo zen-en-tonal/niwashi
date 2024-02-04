@@ -16,6 +16,10 @@ pub struct Session {
 }
 
 impl Session {
+    pub fn new(from: DateTime, latest: DateTime, len: usize) -> Self {
+        Self { from, latest, len }
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
