@@ -1,7 +1,3 @@
 [workspace]
-
-members = [
-    "tree"
-]
-
+members = ["http", "postgres", "session"]
 resolver = "2"

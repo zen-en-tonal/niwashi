@@ -7,3 +7,14 @@ services:
     volumes:
       - ../:/workspace
     working_dir: /workspace
+
+  pg:
+    image: postgres:16
+    volumes:
+      - ../db/data:/var/lib/postgresql/data
+      - ../db/init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
