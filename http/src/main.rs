@@ -43,6 +43,10 @@ async fn main() {
         .parse::<f64>()
         .unwrap();
     let secret = env::var("SECRET").unwrap();
+    let port = env::var("PORT")
+        .unwrap_or("3000".to_string())
+        .parse::<i32>()
+        .unwrap();
 
     #[cfg(feature = "jwt")]
     let state = AppState {
@@ -63,15 +67,19 @@ async fn main() {
         .route("/update", post(update))
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
+        .await
+        .unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
 #[derive(Debug)]
 enum Error {
+    #[allow(dead_code)]
     Create,
     InvalidToken,
     Encode(Box<dyn std::error::Error>),
+    #[allow(dead_code)]
     Decode(Box<dyn std::error::Error>),
 }
 
