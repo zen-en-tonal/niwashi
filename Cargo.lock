@@ -3,9 +3,5 @@
 version = 3
 
 [[package]]
-name = "http"
-version = "0.1.0"
-
-[[package]]
-name = "session"
+name = "life"
 version = "0.1.0"
