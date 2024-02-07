@@ -32,9 +32,9 @@ async fn main() {
 
     #[cfg(feature = "jwt")]
     let state = AppState {
-        factory: jwt::factory(now(), chrono::Duration::hours(1).num_seconds()),
-        mutator: jwt::mutator(now(), chrono::Duration::hours(1).num_seconds()),
-        validator: jwt::validator(now(), 0.1, 2.0),
+        factory: jwt::factory(now, chrono::Duration::hours(1).num_seconds()),
+        mutator: jwt::mutator(now, chrono::Duration::hours(1).num_seconds()),
+        validator: jwt::validator(now, 0.1, 2.0),
         destroyer: jwt::destroy,
         encode: jwt::encode(jsonwebtoken::EncodingKey::from_secret(b"")),
         decode: jwt::decode(jsonwebtoken::DecodingKey::from_secret(b"")),

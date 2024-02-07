@@ -31,27 +31,34 @@ pub(crate) struct Claims {
     count: i64,
 }
 
-pub(crate) fn factory(now: i64, exp_in: i64) -> impl Fn() -> Result<Claims, Error> {
+pub(crate) fn factory(now: impl Fn() -> i64, exp_in: i64) -> impl Fn() -> Result<Claims, Error> {
     move || {
+        let n = (now)();
         Ok(Claims {
-            exp: now + exp_in,
-            from: now,
+            exp: n + exp_in,
+            from: n,
             count: 1,
         })
     }
 }
 
-pub(crate) fn mutator(now: i64, exp_in: i64) -> impl Fn(Claims) -> Claims + Clone {
+pub(crate) fn mutator(now: impl Fn() -> i64, exp_in: i64) -> impl Fn(Claims) -> Claims + Clone {
+    let n = (now)();
     move |jwt: Claims| Claims {
-        exp: now + exp_in,
+        exp: n + exp_in,
         from: jwt.from,
         count: jwt.count + 1,
     }
 }
 
-pub(crate) fn validator(now: i64, min: f64, max: f64) -> impl Fn(&Claims) -> bool + Clone {
+pub(crate) fn validator(
+    now: impl Fn() -> i64,
+    min: f64,
+    max: f64,
+) -> impl Fn(&Claims) -> bool + Clone {
+    let n = (now)();
     move |jwt: &Claims| {
-        let duration = now - jwt.from;
+        let duration = n - jwt.from;
         let density = match (jwt.count, duration) {
             (0, 0) => 0.0,
             (x, 0) => x as f64,
