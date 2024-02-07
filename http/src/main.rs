@@ -1,8 +1,6 @@
 #[cfg(feature = "jwt")]
 mod jwt;
 
-use std::{fmt::Display, marker::PhantomData, sync::Arc};
-
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -11,6 +9,8 @@ use axum::{
 };
 use life::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::env;
+use std::{fmt::Display, marker::PhantomData, sync::Arc};
 
 struct AppState<Factory, Mutation, Validation, Destroy, Encode, Decode, T> {
     factory: Factory,
@@ -30,14 +30,28 @@ async fn main() {
         chrono::Utc::now().timestamp()
     }
 
+    let expires_in = env::var("EXPIRES_IN")
+        .unwrap_or("60".to_string())
+        .parse::<i64>()
+        .unwrap();
+    let min_density = env::var("MIN_DENSITY")
+        .unwrap_or("0.0".to_string())
+        .parse::<f64>()
+        .unwrap();
+    let max_density = env::var("MAX_DENSITY")
+        .unwrap_or("5.0".to_string())
+        .parse::<f64>()
+        .unwrap();
+    let secret = env::var("SECRET").unwrap();
+
     #[cfg(feature = "jwt")]
     let state = AppState {
-        factory: jwt::factory(now, chrono::Duration::hours(1).num_seconds()),
-        mutator: jwt::mutator(now, chrono::Duration::hours(1).num_seconds()),
-        validator: jwt::validator(now, 0.1, 2.0),
+        factory: jwt::factory(now, chrono::Duration::minutes(expires_in).num_seconds()),
+        mutator: jwt::mutator(now, chrono::Duration::minutes(expires_in).num_seconds()),
+        validator: jwt::validator(now, min_density, max_density),
         destroyer: jwt::destroy,
-        encode: jwt::encode(jsonwebtoken::EncodingKey::from_secret(b"")),
-        decode: jwt::decode(jsonwebtoken::DecodingKey::from_secret(b"")),
+        encode: jwt::encode(jsonwebtoken::EncodingKey::from_secret(secret.as_bytes())),
+        decode: jwt::decode(jsonwebtoken::DecodingKey::from_secret(secret.as_bytes())),
         marker: PhantomData,
     };
 
