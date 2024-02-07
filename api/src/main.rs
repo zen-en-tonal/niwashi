@@ -19,6 +19,7 @@ struct AppState {
     decoding_key: DecodingKey,
     min_density: f64,
     max_density: f64,
+    expries_in: Duration,
 }
 
 #[tokio::main]
@@ -30,6 +31,7 @@ async fn main() {
         decoding_key: DecodingKey::from_secret(b""),
         min_density: 0.1,
         max_density: 2.0,
+        expries_in: Duration::hours(1),
     };
     let state = Arc::new(key);
 
@@ -48,7 +50,7 @@ async fn health() -> StatusCode {
 }
 
 async fn create(State(s): State<Arc<AppState>>) -> (StatusCode, Json<TokenPayload>) {
-    match jwt::create::<Claims>(&s.encoding_key) {
+    match jwt::create_with::<Claims>(new(now(), s.expries_in), &s.encoding_key) {
         Ok(token) => (
             StatusCode::OK,
             Json(TokenPayload {
@@ -77,8 +79,13 @@ async fn update(
     State(s): State<Arc<AppState>>,
     Query(q): Query<UpdateQuery>,
 ) -> (StatusCode, Json<TokenPayload>) {
-    let res = jwt::update::<Claims>(&q.token, &s.encoding_key, &s.decoding_key)
-        .introspective(validate(now(), s.min_density, s.max_density));
+    let res = jwt::update_with::<Claims>(
+        &q.token,
+        mutate(now(), s.expries_in),
+        &s.encoding_key,
+        &s.decoding_key,
+        validate(now(), s.min_density, s.max_density),
+    );
     match res {
         Ok(token) => (
             StatusCode::OK,
@@ -113,6 +120,28 @@ struct Claims {
     count: i64,
 }
 
+fn new(n: DateTime<Utc>, d: Duration) -> impl Fn() -> Claims {
+    move || {
+        let exp = n + d;
+        Claims {
+            exp: exp.timestamp(),
+            from: n.timestamp(),
+            count: 1,
+        }
+    }
+}
+
+fn mutate(n: DateTime<Utc>, d: Duration) -> impl Fn(Claims) -> Claims {
+    move |claims: Claims| {
+        let exp = n + d;
+        Claims {
+            exp: exp.timestamp(),
+            from: claims.from,
+            count: claims.count + 1,
+        }
+    }
+}
+
 fn validate(n: DateTime<Utc>, min_density: f64, max_density: f64) -> impl Fn(&Claims) -> bool {
     move |claims: &Claims| {
         let duration = n - DateTime::from_timestamp(claims.from, 0).unwrap();
@@ -122,29 +151,6 @@ fn validate(n: DateTime<Utc>, min_density: f64, max_density: f64) -> impl Fn(&Cl
             (x, d) => x as f64 / d as f64,
         };
         min_density <= density && density <= max_density
-    }
-}
-
-impl jwt::Mutable for Claims {
-    fn mutate(self) -> Option<Self> {
-        let exp = now() + Duration::hours(1);
-        Some(Claims {
-            exp: exp.timestamp(),
-            from: self.from,
-            count: self.count + 1,
-        })
-    }
-}
-
-impl Default for Claims {
-    fn default() -> Self {
-        let from = now();
-        let exp = from + Duration::hours(1);
-        Self {
-            exp: exp.timestamp(),
-            from: from.timestamp(),
-            count: 1,
-        }
     }
 }
 
@@ -165,7 +171,7 @@ mod tests {
         let c = Claims {
             exp: 1337,
             from: 1337,
-            count: 1,
+            count: 2,
         };
         let invalid = validate(DateTime::from_timestamp(1337 + 1, 0).unwrap(), 0f64, 1f64)(&c);
         assert_eq!(invalid, false)

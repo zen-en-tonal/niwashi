@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use super::{Mutable, Mutator};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct IntoMutable<T, Q>(T, Q);
 
 impl<T, Q> IntoMutable<T, Q> {

@@ -1,9 +1,8 @@
 mod errors;
 
-use std::marker::PhantomData;
-
 use errors::Error;
 use jsonwebtoken::{decode, encode, Header, Validation};
+use life::prelude::Mutator;
 use serde::{Deserialize, Serialize};
 
 pub use jsonwebtoken::{DecodingKey, EncodingKey};
@@ -20,54 +19,37 @@ pub fn create_with<T: Serialize>(
     Ok(encode(&Header::default(), &factory(), key)?)
 }
 
-pub fn update<'a, T>(
-    token: &'a impl AsRef<str>,
-    encoding_key: &'a EncodingKey,
-    decoding_key: &'a DecodingKey,
-) -> Update<'a, T> {
-    Update {
-        token: token.as_ref(),
-        encoding_key,
-        decoding_key,
-        marker: PhantomData,
-    }
-}
-
-pub struct Update<'a, T> {
-    token: &'a str,
-    encoding_key: &'a EncodingKey,
-    decoding_key: &'a DecodingKey,
-    marker: PhantomData<T>,
-}
-
-impl<'a, T> Update<'a, T>
+pub fn update<T>(
+    token: &impl AsRef<str>,
+    encoding_key: &EncodingKey,
+    decoding_key: &DecodingKey,
+    validator: impl Validator<T>,
+) -> Result<String, Error>
 where
-    T: Serialize + for<'de> Deserialize<'de> + Mutable + AsRef<T>,
+    T: for<'de> Deserialize<'de> + Serialize + Mutable + AsRef<T>,
 {
-    pub fn introspective(&self, validator: impl Validator<T>) -> Result<String, Error> {
-        self.update(|c| validator.make_introspective(c))
-    }
-
-    pub fn anyway(&self) -> Result<String, Error> {
-        self.update(|c| c)
-    }
-
-    fn update<F: FnOnce(T) -> M, M: Mutable + AsRef<T>>(&self, m: F) -> Result<String, Error> {
-        let claims = decode::<T>(self.token, self.decoding_key, &Validation::default())?;
-        let mutable = m(claims.claims);
-        match mutable.mutate() {
-            Some(x) => Ok(encode(&claims.header, &x.as_ref(), self.encoding_key)?),
-            None => Err(Error::InvalidToken),
-        }
+    let token = decode::<T>(token.as_ref(), decoding_key, &Validation::default())?;
+    match validator.make_introspective(token.claims).mutate() {
+        Some(some) => Ok(encode(&token.header, &some.inner(), encoding_key)?),
+        None => Err(Error::InvalidToken),
     }
 }
 
-impl<'a, T> Update<'a, T>
+pub fn update_with<T>(
+    token: &impl AsRef<str>,
+    mutator: impl Mutator<T>,
+    encoding_key: &EncodingKey,
+    decoding_key: &DecodingKey,
+    validator: impl Validator<T>,
+) -> Result<String, Error>
 where
-    T: Serialize + for<'de> Deserialize<'de> + Mutable + AsRef<T> + Clone,
+    T: for<'de> Deserialize<'de> + Serialize,
 {
-    pub fn stop_growing(&self, validator: impl Validator<T>) -> Result<String, Error> {
-        self.update(|c| validator.make_stop_growing(c))
+    let token = decode::<T>(token.as_ref(), decoding_key, &Validation::default())?;
+    let mutable = validator.make_introspective(mutator.make_mutable(token.claims));
+    match mutable.mutate() {
+        Some(some) => Ok(encode(&token.header, some.inner(), encoding_key)?),
+        None => Err(Error::InvalidToken),
     }
 }
 
@@ -114,9 +96,7 @@ mod tests {
         let e_key = EncodingKey::from_secret("secret".as_ref());
         let d_key = DecodingKey::from_secret("secret".as_ref());
         let old_token = create::<Claims>(&e_key).unwrap();
-        let new_token = update::<Claims>(&old_token, &e_key, &d_key)
-            .anyway()
-            .unwrap();
+        let new_token = update::<Claims>(&old_token, &e_key, &d_key, |_: &Claims| true).unwrap();
         assert_ne!(old_token, new_token)
     }
 }
