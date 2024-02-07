@@ -13,6 +13,13 @@ pub fn create<T: Serialize + Default>(key: &EncodingKey) -> Result<String, Error
     Ok(encode(&Header::default(), &T::default(), key)?)
 }
 
+pub fn create_with<T: Serialize>(
+    factory: impl Fn() -> T,
+    key: &EncodingKey,
+) -> Result<String, Error> {
+    Ok(encode(&Header::default(), &factory(), key)?)
+}
+
 pub fn update<'a, T>(
     token: &'a impl AsRef<str>,
     encoding_key: &'a EncodingKey,
