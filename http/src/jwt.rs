@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
-pub fn encode<T: Serialize>(encoding_key: EncodingKey) -> impl Fn(T) -> Result<String, Error> {
+pub(crate) fn encode<T: Serialize>(
+    encoding_key: EncodingKey,
+) -> impl Fn(T) -> Result<String, Error> {
     move |x: T| {
         Ok(
             jsonwebtoken::encode::<T>(&Header::default(), &x, &encoding_key)
@@ -12,7 +14,7 @@ pub fn encode<T: Serialize>(encoding_key: EncodingKey) -> impl Fn(T) -> Result<S
     }
 }
 
-pub fn decode<T: for<'de> Deserialize<'de>>(
+pub(crate) fn decode<T: for<'de> Deserialize<'de>>(
     decoding_key: DecodingKey,
 ) -> impl Fn(String) -> Result<T, Error> {
     move |x: String| {
