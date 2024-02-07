@@ -14,18 +14,22 @@ fn now() -> DateTime<Utc> {
     chrono::Utc::now()
 }
 
-struct Keys {
+struct AppState {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
+    min_density: f64,
+    max_density: f64,
 }
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    let key = Keys {
+    let key = AppState {
         encoding_key: EncodingKey::from_secret(b""),
         decoding_key: DecodingKey::from_secret(b""),
+        min_density: 0.1,
+        max_density: 2.0,
     };
     let state = Arc::new(key);
 
@@ -43,7 +47,7 @@ async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-async fn create(State(s): State<Arc<Keys>>) -> (StatusCode, Json<TokenPayload>) {
+async fn create(State(s): State<Arc<AppState>>) -> (StatusCode, Json<TokenPayload>) {
     match jwt::create::<Claims>(&s.encoding_key) {
         Ok(token) => (
             StatusCode::OK,
@@ -70,11 +74,11 @@ struct UpdateQuery {
 }
 
 async fn update(
-    State(s): State<Arc<Keys>>,
+    State(s): State<Arc<AppState>>,
     Query(q): Query<UpdateQuery>,
 ) -> (StatusCode, Json<TokenPayload>) {
     let res = jwt::update::<Claims>(&q.token, &s.encoding_key, &s.decoding_key)
-        .introspective(validate(now(), 0.1, 2.0));
+        .introspective(validate(now(), s.min_density, s.max_density));
     match res {
         Ok(token) => (
             StatusCode::OK,
