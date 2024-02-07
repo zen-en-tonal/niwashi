@@ -3,9 +3,11 @@ mod errors;
 use std::marker::PhantomData;
 
 use errors::Error;
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use life::prelude::{MakeIntrospective, MakeStopGrowing, Mutable, Validator};
-use serde::Serialize;
+use jsonwebtoken::{decode, encode, Header, Validation};
+use serde::{Deserialize, Serialize};
+
+pub use jsonwebtoken::{DecodingKey, EncodingKey};
+pub use life::prelude::{MakeIntrospective, MakeStopGrowing, Mutable, Validator};
 
 pub fn create<T: Serialize + Default>(key: &EncodingKey) -> Result<String, Error> {
     Ok(encode(&Header::default(), &T::default(), key)?)
@@ -33,7 +35,7 @@ pub struct Update<'a, T> {
 
 impl<'a, T> Update<'a, T>
 where
-    T: Serialize + for<'de> serde::Deserialize<'de> + Mutable + AsRef<T>,
+    T: Serialize + for<'de> Deserialize<'de> + Mutable + AsRef<T>,
 {
     pub fn introspective(&self, validator: impl Validator<T>) -> Result<String, Error> {
         self.update(|c| validator.make_introspective(c))
@@ -55,7 +57,7 @@ where
 
 impl<'a, T> Update<'a, T>
 where
-    T: Serialize + for<'de> serde::Deserialize<'de> + Mutable + AsRef<T> + Clone,
+    T: Serialize + for<'de> Deserialize<'de> + Mutable + AsRef<T> + Clone,
 {
     pub fn stop_growing(&self, validator: impl Validator<T>) -> Result<String, Error> {
         self.update(|c| validator.make_stop_growing(c))
