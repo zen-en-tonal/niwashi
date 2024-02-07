@@ -1,3 +1,3 @@
 [workspace]
-members = [ "jwt","life"]
+members = [ "api", "jwt","life"]
 resolver = "2"
